@@ -1,93 +1,171 @@
-# radio
+# Radio Calico
 
-Local prototyping stack: **Next.js 16** (App Router, TypeScript) + **SQLite** via Node 24's
-built-in `node:sqlite`. No database server, no native modules, no build step for the tooling.
+A web player for the Radio Calico lossless internet radio stream.
+
+**Next.js 16** (App Router, TypeScript, Tailwind 4) + **hls.js** for playback, with a
+**SQLite** scaffold via Node 24's built-in `node:sqlite` ready for when the site needs to
+store anything. No database server, no native modules.
 
 ## Getting started
 
 ```bash
-npm install       # once
-npm run db:reset  # create data/app.db, run migrations, load seed data
-npm run dev       # http://localhost:3000
+npm install
+npm run dev      # http://localhost:3000
 ```
 
-The home page lists rows from the `items` table and adds new ones through the API, so if it
-renders you know the whole path — page → route handler → SQLite → back — is wired up.
+That is all the player needs — it talks directly to the CloudFront origin and does not
+currently touch the database.
 
-## How the database is set up
+## The player
 
-- **Driver:** `node:sqlite`, built into Node 24. Nothing to install, nothing to compile.
-  The API is synchronous, which is fine here: the database is a local file and queries return
-  in microseconds.
+### The stream
+
+The origin publishes a two-variant HLS master playlist at
+`https://d3d4yli4hf5bmh.cloudfront.net/hls/live.m3u8`:
+
+| Variant | Codec | Container | Bitrate | Notes |
+| --- | --- | --- | --- | --- |
+| `flac_hires` | `fLaC` | fMP4 (`.m4s`) | ~1408 kbps | Lossless. Plays over MSE. |
+| `aac_hifi` | `mp4a.40.2` | MPEG-TS (`.ts`) | ~211 kbps | Fallback, plays everywhere. |
+
+The lossless variant being fMP4 rather than MPEG-TS is what makes browser playback possible
+at all — FLAC has no MPEG-TS mapping, so a `.ts` lossless variant could not be decoded by
+Media Source Extensions.
+
+### Engine selection
+
+`src/app/use-hls-player.ts` picks a playback path on mount:
+
+- **hls.js** when `MediaSource.isTypeSupported('audio/mp4; codecs="flac"')` is true
+  (Chrome, Edge, Firefox). This is the path that also gives the FLAC/AAC selector, since
+  variant switching needs MSE.
+- **Native HLS** (`audio.src = …`) when MSE cannot do FLAC but the browser can play HLS
+  directly. Safari frequently plays FLAC-in-HLS natively while refusing it over MSE, so
+  this path exists to keep lossless working there rather than silently downgrading.
+
+If neither can deliver FLAC, the player falls back to the AAC variant and says so in the UI.
+The listener's stated preference is kept, not overwritten, so it takes effect again if the
+variant list changes.
+
+Other playback details worth knowing:
+
+- Segments are not fetched until the listener presses play (`autoStartLoad: false`), so
+  merely opening the page costs one manifest request rather than a rolling buffer.
+- Pausing calls `stopLoad()`, and resuming calls `startLoad(-1)` to rejoin at the live edge
+  instead of replaying stale buffer. This is live radio; there is nothing to catch up on.
+- Fatal errors are retried — network errors via `startLoad()`, media errors via
+  `recoverMediaError()` — up to four times before the player gives up and says so.
+
+### Now playing
+
+`src/app/use-now-playing.ts` polls `/metadatav2.json` every 10 seconds (the origin sends
+`max-age=10`, so faster polling only burns requests). It supplies artist, title, album, year,
+source bit depth/sample rate, and the last five tracks.
+
+`/cover.jpg` is replaced in place at a fixed URL, so it is cache-busted with a query string
+only when the track actually changes.
+
+Both endpoints send `Access-Control-Allow-Origin: *`, which is why the browser can call them
+directly and no server-side proxy exists. Note that **`cover.jpg` does not send a CORS
+header** — fine for an `<img>`, but it would taint a canvas, so drawing the artwork into a
+canvas would require proxying it.
+
+### Design
+
+The UI follows the two provided brand assets, both at the repository root:
+
+- `RadioCalico_Style_Guide.txt` — palette, typography, component rules. The palette is
+  exposed as Tailwind tokens in `src/app/globals.css` (`bg-mint`, `text-forest`, `bg-charcoal`,
+  `text-teal`, …) and the fonts (Montserrat headings, Open Sans body) are wired up in
+  `layout.tsx`.
+- `RadioCalicoLayout.png` — the reference layout: charcoal header wordmark, square cover art
+  beside the track details, dark player pill, mint "Previous tracks" strip.
+
+This is a light-only design. The brand has no dark palette, so `globals.css` deliberately
+fixes the colours rather than reacting to `prefers-color-scheme`.
+
+## The database scaffold
+
+**Nothing in the player uses SQLite yet.** `db/migrations/` is empty and there are no tables.
+The wiring is in place so the first feature that needs persistence — track ratings, play
+history, favourites — does not have to set it up from scratch.
+
+- **Driver:** `node:sqlite`, built into Node 24. Synchronous, which is fine for a local file.
 - **File:** `data/app.db` (gitignored). Override with `DATABASE_PATH` in `.env.local`.
-- **Connection:** a single cached `DatabaseSync` in `src/lib/db.ts`. It is stashed on
-  `globalThis` because Next's dev server re-evaluates modules on every edit — without the
-  cache each hot reload would leak a connection.
-- **Pragmas:** WAL journaling (so the dev server and CLI scripts do not lock each other out),
-  foreign keys on, 5s busy timeout.
-- **Migrations run automatically** the first time the app opens the database, so `npm run dev`
-  on a clean checkout just works.
+- **Connection:** one cached `DatabaseSync` in `src/lib/db.ts`, stashed on `globalThis`
+  because Next's dev server re-evaluates modules on every edit — without the cache each hot
+  reload would leak a connection.
+- **Pragmas:** WAL journaling, foreign keys on, 5s busy timeout.
+- **Migrations run automatically** on first connect, so a clean checkout just works.
 
-## Changing the schema
+### Adding a schema
 
-Add a new file to `db/migrations/`, named so it sorts after the last one:
+Add a file to `db/migrations/`, named so it sorts after the last one:
 
 ```
-db/migrations/001_init.sql
-db/migrations/002_add_stations.sql   <- your new file
+db/migrations/001_add_ratings.sql
 ```
 
-Each file runs once, in filename order, inside its own transaction, and is recorded in the
-`_migrations` table. **Do not edit a migration that has already been applied** — add another
-one. If you are still churning on the schema and do not care about the data, editing in place
-and running `npm run db:reset` is faster.
+Each file runs once, in filename order, in its own transaction, recorded in `_migrations`.
+**Do not edit an already-applied migration** — add another. While the schema is still
+churning, editing in place and running `npm run db:reset` is faster.
 
-Update `db/seed.sql` alongside it. Seeds are written to be idempotent (they clear before
-inserting), so they can be re-run freely.
-
-## Database commands
+Create `db/seed.sql` for development data; write it to clear before inserting so it stays
+re-runnable.
 
 | Command | What it does |
 | --- | --- |
 | `npm run db:migrate` | Apply pending migrations |
-| `npm run db:seed` | Load `db/seed.sql` |
+| `npm run db:seed` | Load `db/seed.sql` (no-op if absent) |
 | `npm run db:reset` | Drop every table, re-migrate, re-seed |
-| `npm run db:query "SELECT * FROM items"` | Run one-off SQL and print a table |
+| `npm run db:query "SELECT …"` | Run one-off SQL and print a table |
 
 `db:reset` drops tables rather than deleting the `.db` file, so it works while `npm run dev`
 is running — on Windows the file is locked while the server holds it open.
 
-There is no `sqlite3` CLI installed; `npm run db:query` covers ad-hoc inspection. If you want
-a GUI, [DB Browser for SQLite](https://sqlitebrowser.org/) opens `data/app.db` directly.
+There is no `sqlite3` CLI installed; `npm run db:query` covers ad-hoc inspection, or
+[DB Browser for SQLite](https://sqlitebrowser.org/) opens `data/app.db` directly.
 
-## Where things live
+## Project layout
 
 ```
-db/migrations/       schema, one .sql file per change
-db/seed.sql          development seed data
-scripts/db.mts       database CLI (Node runs TypeScript natively, no build)
-src/lib/db.ts        connection, pragmas, migration runner, query helpers
-src/lib/items.ts     data access for the demo table -- SQL lives here, not in routes
-src/app/page.tsx     server component, reads SQLite directly
-src/app/api/items/   REST route handlers (GET/POST, GET/PATCH/DELETE by id)
+src/app/page.tsx                 header + player (server component)
+src/app/layout.tsx               fonts, metadata
+src/app/globals.css              brand tokens, volume slider styling
+src/app/radio-player.tsx         player UI
+src/app/use-hls-player.ts        engine selection, variant pinning, error recovery
+src/app/use-now-playing.ts       metadata polling, cover cache-busting
+src/app/use-persistent-volume.ts volume persisted via useSyncExternalStore
+src/lib/stream.ts                stream URLs, metadata parsing and formatting
+src/lib/db.ts                    connection, pragmas, migrations, query helpers
+db/migrations/                   schema, one .sql file per change (currently empty)
+scripts/db.mts                   database CLI (Node runs TypeScript natively)
+public/RadioCalicoLogoTM.png     logo used in the header
 ```
 
-Two ways to read data, both wired up — pick per feature:
+## Conventions
 
-- **Server components** call `src/lib/*` directly. No fetch, no waterfall. Best for page loads.
-- **Route handlers** under `src/app/api/`. Needed for client-side mutations and anything
-  external that will call in.
+- **Stream and metadata configuration lives in `src/lib/stream.ts`.** No hard-coded URLs in
+  components.
+- **SQL belongs in `src/lib/*.ts`**, not in route handlers or components, and always through
+  the bound-parameter helpers (`all`, `get`, `run`, `transaction`) — never string
+  interpolation.
+- **Route handlers must stay on the Node runtime** (the default). `node:sqlite` does not
+  exist on the edge runtime.
+- **Brand colours come from the Tailwind tokens** in `globals.css`, not raw hex in class
+  names, so the style guide stays the single source of truth.
+- React 19's `react-hooks/set-state-in-effect` lint rule is enforced. Derive state during
+  render or use `useSyncExternalStore`; do not call `setState` synchronously in an effect.
 
-## Conventions worth keeping
+## Status
 
-- SQL belongs in `src/lib/*.ts`, not in route handlers or components.
-- Route handlers must stay on the Node runtime (the default). `node:sqlite` cannot run on the
-  edge runtime.
-- Use the parameterised helpers (`all`, `get`, `run`, `transaction`) from `src/lib/db.ts`
-  rather than interpolating values into SQL strings.
+`npm run build`, `npx tsc --noEmit`, and `npm run lint` are all clean.
 
-## Replacing the placeholder
+End-to-end audio playback has **not** yet been confirmed in a real browser — the FLAC path in
+particular depends on runtime MSE codec support that a build cannot exercise. Open
+http://localhost:3000, press play, and check that the "Stream quality" line reports
+`1408 kbps FLAC / HLS Lossless`.
 
-`items` exists only to prove the plumbing. When you have the real schema, delete
-`src/lib/items.ts`, `src/app/api/items/`, `src/app/add-item-form.tsx`, and the body of
-`src/app/page.tsx`, then either edit `001_init.sql` and reset, or add `002_*.sql`.
+Not built yet, though the reference layout shows it: **track rating** (the 👍/👎 control).
+That is the natural first use of the SQLite scaffold — a `ratings` migration plus a route
+handler under `src/app/api/`.

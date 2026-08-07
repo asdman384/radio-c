@@ -1,12 +1,31 @@
+import Image from "next/image";
+import { RadioPlayer } from "./radio-player";
+
 export default function Home() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-4 p-8">
-      <h1 className="text-2xl font-semibold">Local prototype</h1>
-      <p className="text-sm text-black/60 dark:text-white/60">
-        Next.js and SQLite are wired up. Add a migration in{" "}
-        <code className="font-mono">db/migrations/</code>, run{" "}
-        <code className="font-mono">npm run db:migrate</code>, and start building.
-      </p>
-    </main>
+    <>
+      <header className="bg-charcoal">
+        <div className="mx-auto flex w-full max-w-[1200px] items-center justify-center gap-3 px-6 py-4">
+          <span className="sr-only">Radio Calico</span>
+          <span aria-hidden className="font-heading text-2xl font-bold text-white md:text-3xl">
+            Radio
+          </span>
+          <Image
+            src="/RadioCalicoLogoTM.png"
+            alt=""
+            aria-hidden
+            width={96}
+            height={96}
+            priority
+            className="h-11 w-11 md:h-12 md:w-12"
+          />
+          <span aria-hidden className="font-heading text-2xl font-bold text-mint md:text-3xl">
+            Calico
+          </span>
+        </div>
+      </header>
+
+      <RadioPlayer />
+    </>
   );
 }
