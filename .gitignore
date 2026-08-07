@@ -20,6 +20,9 @@
 # production
 /build
 
+# local database (rebuild with: npm run db:reset)
+/data/
+
 # misc
 .DS_Store
 *.pem

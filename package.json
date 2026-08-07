@@ -2,11 +2,16 @@
   "name": "radio",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:migrate": "node scripts/db.mts",
+    "db:seed": "node scripts/db.mts seed",
+    "db:reset": "node scripts/db.mts reset",
+    "db:query": "node scripts/db.mts query"
   },
   "dependencies": {
     "next": "16.3.0",
@@ -15,7 +20,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^24.13.3",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
