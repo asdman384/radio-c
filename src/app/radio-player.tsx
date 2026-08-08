@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { formatSourceQuality } from "@/lib/stream";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { formatSourceQuality, trackKey } from "@/lib/stream";
 import { type QualityMode, useHlsPlayer } from "./use-hls-player";
 import { useNowPlaying } from "./use-now-playing";
 import { setStoredVolume, usePersistentVolume } from "./use-persistent-volume";
+import { useTrackRating } from "./use-track-rating";
 
 function formatElapsed(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
@@ -33,6 +34,8 @@ export function RadioPlayer() {
     isPlaying,
   } = useHlsPlayer(audioRef);
   const { track, stale, coverSrc } = useNowPlaying();
+  const key = trackKey(track);
+  const rating = useTrackRating(key, track?.artist ?? "", track?.title ?? "");
 
   const volume = usePersistentVolume();
   const [muted, setMuted] = useState(false);
@@ -150,6 +153,37 @@ export function RadioPlayer() {
               )}
             </dl>
 
+            {/* Track rating */}
+            <div className="mt-8 flex items-center gap-3">
+              <span className="text-sm text-charcoal/70">Rate this track:</span>
+
+              <RatingButton
+                label="Thumbs up"
+                count={rating.up}
+                selected={rating.myRating === 1}
+                locked={rating.myRating !== null}
+                disabled={!key || rating.loading || rating.pending}
+                onClick={() => rating.submit(1)}
+              >
+                <ThumbUpIcon />
+              </RatingButton>
+
+              <RatingButton
+                label="Thumbs down"
+                count={rating.down}
+                selected={rating.myRating === -1}
+                locked={rating.myRating !== null}
+                disabled={!key || rating.loading || rating.pending}
+                onClick={() => rating.submit(-1)}
+              >
+                <ThumbDownIcon />
+              </RatingButton>
+
+              <span aria-live="polite" className="sr-only">
+                {rating.up} thumbs up, {rating.down} thumbs down
+              </span>
+            </div>
+
             {/* Player controls */}
             <div className="mt-8 flex flex-wrap items-center gap-4 rounded-lg bg-[#3a3a3a] px-5 py-4">
               <button
@@ -259,6 +293,46 @@ export function RadioPlayer() {
   );
 }
 
+type RatingButtonProps = {
+  label: string;
+  count: number;
+  selected: boolean;
+  locked: boolean;
+  disabled: boolean;
+  onClick: () => void;
+  children: ReactNode;
+};
+
+function RatingButton({
+  label,
+  count,
+  selected,
+  locked,
+  disabled,
+  onClick,
+  children,
+}: RatingButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || locked}
+      aria-pressed={selected}
+      aria-label={`${label}, ${count} votes`}
+      className={`flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-teal focus-visible:outline-none disabled:cursor-not-allowed ${
+        selected
+          ? "bg-forest text-white"
+          : locked
+            ? "bg-transparent text-charcoal/40"
+            : "bg-transparent text-forest hover:bg-mint"
+      }`}
+    >
+      {children}
+      <span>{count}</span>
+    </button>
+  );
+}
+
 /* Icons: 2px stroke, rounded caps, per the brand style guide. */
 
 function PlayIcon() {
@@ -311,6 +385,42 @@ function MutedIcon() {
     >
       <path d="M11 5 6.5 9H3v6h3.5L11 19V5Z" fill="currentColor" />
       <path d="m16 9.5 5 5M21 9.5l-5 5" />
+    </svg>
+  );
+}
+
+function ThumbUpIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-4 w-4"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M7 22V11" />
+      <path d="M7 11 10.5 3a2 2 0 0 1 2 2v4h5.5a2 2 0 0 1 1.94 2.49l-1.5 6A2 2 0 0 1 16.03 19H7" />
+    </svg>
+  );
+}
+
+function ThumbDownIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-4 w-4"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M17 2v11" />
+      <path d="M17 13 13.5 21a2 2 0 0 1-2-2v-4H6a2 2 0 0 1-1.94-2.49l1.5-6A2 2 0 0 1 7.97 5H17" />
     </svg>
   );
 }

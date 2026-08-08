@@ -86,10 +86,6 @@ fixes the colours rather than reacting to `prefers-color-scheme`.
 
 ## The database scaffold
 
-**Nothing in the player uses SQLite yet.** `db/migrations/` is empty and there are no tables.
-The wiring is in place so the first feature that needs persistence — track ratings, play
-history, favourites — does not have to set it up from scratch.
-
 - **Driver:** `node:sqlite`, built into Node 24. Synchronous, which is fine for a local file.
 - **File:** `data/app.db` (gitignored). Override with `DATABASE_PATH` in `.env.local`.
 - **Connection:** one cached `DatabaseSync` in `src/lib/db.ts`, stashed on `globalThis`
@@ -126,19 +122,55 @@ is running — on Windows the file is locked while the server holds it open.
 There is no `sqlite3` CLI installed; `npm run db:query` covers ad-hoc inspection, or
 [DB Browser for SQLite](https://sqlitebrowser.org/) opens `data/app.db` directly.
 
+### Track ratings
+
+Listeners can rate the current track 👍 or 👎, one vote per listener per song, from the
+`ratings` table (`db/migrations/001_add_ratings.sql`):
+
+```sql
+CREATE TABLE ratings (
+  track_key   TEXT    NOT NULL,
+  listener_id TEXT    NOT NULL,
+  value       INTEGER NOT NULL CHECK (value IN (-1, 1)),
+  artist      TEXT    NOT NULL DEFAULT '',
+  title       TEXT    NOT NULL DEFAULT '',
+  created_at  TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  PRIMARY KEY (track_key, listener_id)
+) WITHOUT ROWID;
+```
+
+- **`track_key`** is `trackKey(track)` from `src/lib/stream.ts` (`` `${artist} ${title}
+  ${album}` ``) — the same identity already used for cover-art cache-busting. There is no
+  origin-supplied track ID.
+- **`listener_id`** comes from an `httpOnly` cookie (`rc_listener`, one year, minted by
+  `src/app/api/ratings/route.ts` on first request). This deduplicates votes per browser; it
+  is not authentication — clearing cookies gets a fresh vote.
+- **The composite primary key is the one-vote-per-listener guarantee**, enforced by SQLite
+  rather than application logic.
+- **`GET /api/ratings?trackKey=…`** returns `{ up, down, myRating }` for that track and
+  mints the cookie if missing.
+- **`POST /api/ratings`** with `{ trackKey, value, artist, title }` (`value` is `1` or `-1`)
+  records a vote: `201` with the updated snapshot on success, `409` with the same
+  (unchanged) snapshot if this listener already voted, `400` on malformed input.
+- `src/app/use-track-rating.ts` is the client hook; the control renders in
+  `src/app/radio-player.tsx` between the quality lines and the player pill.
+
 ## Project layout
 
 ```
 src/app/page.tsx                 header + player (server component)
 src/app/layout.tsx               fonts, metadata
 src/app/globals.css              brand tokens, volume slider styling
-src/app/radio-player.tsx         player UI
+src/app/radio-player.tsx         player UI, track rating control
 src/app/use-hls-player.ts        engine selection, variant pinning, error recovery
 src/app/use-now-playing.ts       metadata polling, cover cache-busting
 src/app/use-persistent-volume.ts volume persisted via useSyncExternalStore
+src/app/use-track-rating.ts      rating fetch + submit
+src/app/api/ratings/route.ts     rating GET/POST, listener cookie issuance
 src/lib/stream.ts                stream URLs, metadata parsing and formatting
 src/lib/db.ts                    connection, pragmas, migrations, query helpers
-db/migrations/                   schema, one .sql file per change (currently empty)
+src/lib/ratings.ts               ratings SQL
+db/migrations/                   schema, one .sql file per change
 scripts/db.mts                   database CLI (Node runs TypeScript natively)
 public/RadioCalicoLogoTM.png     logo used in the header
 ```
@@ -165,7 +197,3 @@ End-to-end audio playback has **not** yet been confirmed in a real browser — t
 particular depends on runtime MSE codec support that a build cannot exercise. Open
 http://localhost:3000, press play, and check that the "Stream quality" line reports
 `1408 kbps FLAC / HLS Lossless`.
-
-Not built yet, though the reference layout shows it: **track rating** (the 👍/👎 control).
-That is the natural first use of the SQLite scaffold — a `ratings` migration plus a route
-handler under `src/app/api/`.

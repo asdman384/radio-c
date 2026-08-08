@@ -36,8 +36,11 @@ TypeScript + Tailwind 4 + hls.js, with a SQLite scaffold via Node 24's built-in
 
 ## Database
 
-Nothing uses SQLite yet — `db/migrations/` is empty. The wiring exists for the first
-feature that needs persistence.
+`db/migrations/001_add_ratings.sql` is the first table: track ratings (👍/👎), one vote per
+listener per song, keyed on `trackKey(track)` from `src/lib/stream.ts` plus an `httpOnly`
+`rc_listener` cookie. SQL is in `src/lib/ratings.ts`; the route is
+`src/app/api/ratings/route.ts`. See `README.md`'s "Track ratings" section for the full
+contract.
 
 - **Database access goes through `src/lib/db.ts`.** It exports a cached `DatabaseSync`
   connection plus `all`/`get`/`run`/`transaction` helpers. Never open a second connection.
