@@ -14,11 +14,14 @@ Radio Calico: a web player for a lossless HLS radio stream. Next.js 16 App Route
 TypeScript + Tailwind 4 + hls.js, with a SQLite scaffold via Node 24's built-in
 `node:sqlite`. See `README.md` for how the stream and the player work.
 
+`src/app/` holds routing files only (`page.tsx`, `layout.tsx`, `api/`); UI components
+live in `src/components/`, hooks in `src/hooks/`, and data access/utilities in `src/lib/`.
+
 ## Player
 
 - **Stream and metadata config lives in `src/lib/stream.ts`.** Never hard-code the
   CloudFront URLs in a component.
-- **Playback logic lives in the `src/app/use-*.ts` hooks**, not in `radio-player.tsx`.
+- **Playback logic lives in the `src/hooks/use-*.ts` hooks**, not in `radio-player.tsx`.
   `use-hls-player.ts` owns hls.js; the component only renders.
 - **Lossless is the default and the point of the project.** The master playlist offers a
   FLAC (fMP4) variant and an AAC (MPEG-TS) fallback. Do not change the default variant, the

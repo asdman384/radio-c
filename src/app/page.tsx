@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { RadioPlayer } from "./radio-player";
+import { RadioPlayer } from "@/components/radio-player";
 
 export default function Home() {
   return (

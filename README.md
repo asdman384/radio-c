@@ -34,7 +34,7 @@ Media Source Extensions.
 
 ### Engine selection
 
-`src/app/use-hls-player.ts` picks a playback path on mount:
+`src/hooks/use-hls-player.ts` picks a playback path on mount:
 
 - **hls.js** when `MediaSource.isTypeSupported('audio/mp4; codecs="flac"')` is true
   (Chrome, Edge, Firefox). This is the path that also gives the FLAC/AAC selector, since
@@ -58,7 +58,7 @@ Other playback details worth knowing:
 
 ### Now playing
 
-`src/app/use-now-playing.ts` polls `/metadatav2.json` every 10 seconds (the origin sends
+`src/hooks/use-now-playing.ts` polls `/metadatav2.json` every 10 seconds (the origin sends
 `max-age=10`, so faster polling only burns requests). It supplies artist, title, album, year,
 source bit depth/sample rate, and the last five tracks.
 
@@ -152,22 +152,22 @@ CREATE TABLE ratings (
 - **`POST /api/ratings`** with `{ trackKey, value, artist, title }` (`value` is `1` or `-1`)
   records a vote: `201` with the updated snapshot on success, `409` with the same
   (unchanged) snapshot if this listener already voted, `400` on malformed input.
-- `src/app/use-track-rating.ts` is the client hook; the control renders in
-  `src/app/radio-player.tsx` between the quality lines and the player pill.
+- `src/hooks/use-track-rating.ts` is the client hook; the control renders in
+  `src/components/radio-player.tsx` between the quality lines and the player pill.
 
 ## Project layout
 
 ```
-src/app/page.tsx                 header + player (server component)
-src/app/layout.tsx               fonts, metadata
-src/app/globals.css              brand tokens, volume slider styling
-src/app/radio-player.tsx         player UI, track rating control
-src/app/use-hls-player.ts        engine selection, variant pinning, error recovery
-src/app/use-now-playing.ts       metadata polling, cover cache-busting
-src/app/use-persistent-volume.ts volume persisted via useSyncExternalStore
-src/app/use-track-rating.ts      rating fetch + submit
-src/app/api/ratings/route.ts     rating GET/POST, listener cookie issuance
-src/lib/stream.ts                stream URLs, metadata parsing and formatting
+src/app/page.tsx                  header + player (server component)
+src/app/layout.tsx                fonts, metadata
+src/app/globals.css               brand tokens, volume slider styling
+src/app/api/ratings/route.ts      rating GET/POST, listener cookie issuance
+src/components/radio-player.tsx   player UI, track rating control
+src/hooks/use-hls-player.ts       engine selection, variant pinning, error recovery
+src/hooks/use-now-playing.ts      metadata polling, cover cache-busting
+src/hooks/use-persistent-volume.ts volume persisted via useSyncExternalStore
+src/hooks/use-track-rating.ts     rating fetch + submit
+src/lib/stream.ts                 stream URLs, metadata parsing and formatting
 src/lib/db.ts                    connection, pragmas, migrations, query helpers
 src/lib/ratings.ts               ratings SQL
 db/migrations/                   schema, one .sql file per change
