@@ -7,6 +7,7 @@
 <!-- - ALWAYS run tests after any code changes -->
 - ALWAYS create a git checkpoint before major refactorings
 - One task at a time. DO NOT make multiple changes simultaneously
+- Do exactly what is being asked. Do not try to do further steps
 - If you're unsure — ASK, don't guess
 
 # Working Style
@@ -16,5 +17,5 @@
 
 # Agents
 - Use the `planner` agent for planning
-- Use the `tester` agent after code changes
-- Use the `code-reviewer` agent before commits
+<!-- - Use the `tester` agent after code changes -->
+<!-- - Use the `code-reviewer` agent before commits -->
