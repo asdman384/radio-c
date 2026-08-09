@@ -34,8 +34,8 @@ export function RadioPlayer() {
     <>
       <audio ref={audioRef} preload="none" crossOrigin="anonymous" />
 
-      <main className="mx-auto w-full max-w-[1200px] flex-1 px-6 py-10 md:py-16">
-        <div className="grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-16">
+      <main className="mx-auto w-full max-w-[1200px] flex-1 px-6 py-6 md:py-10">
+        <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-10">
           <CoverArt track={track} coverSrc={coverSrc} />
 
           <div className="flex flex-col">

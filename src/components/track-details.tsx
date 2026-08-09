@@ -25,7 +25,7 @@ export function TrackDetails({ track, engine, activeVariant, error, stale }: Tra
         {track?.artist || "Radio Calico"}
       </h1>
 
-      <h2 className="font-heading mt-6 text-2xl leading-snug font-bold text-charcoal md:text-3xl">
+      <h2 className="font-heading mt-4 text-2xl leading-snug font-bold text-charcoal md:text-3xl">
         {track ? (
           <>
             {track.title}
@@ -37,12 +37,12 @@ export function TrackDetails({ track, engine, activeVariant, error, stale }: Tra
       </h2>
 
       {track?.album && (
-        <h3 className="font-heading mt-6 text-lg leading-snug font-bold text-charcoal md:text-xl">
+        <h3 className="font-heading mt-3 text-lg leading-snug font-bold text-charcoal md:text-xl">
           {track.album}
         </h3>
       )}
 
-      <dl className="mt-8 space-y-1 text-sm text-charcoal/70 italic">
+      <dl className="mt-6 space-y-1 text-sm text-charcoal/70 italic">
         {sourceQuality && (
           <div>
             <dt className="inline">Source quality: </dt>

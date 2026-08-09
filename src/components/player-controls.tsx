@@ -59,7 +59,7 @@ export function PlayerControls({ audioRef, engine, status, isPlaying, toggle }: 
             : "Live";
 
   return (
-    <div className="mt-8 flex flex-wrap items-center gap-4 rounded-lg bg-[#3a3a3a] px-5 py-4">
+    <div className="mt-6 flex flex-wrap items-center gap-4 rounded-lg bg-[#3a3a3a] px-5 py-4">
       <button
         type="button"
         onClick={handleToggle}

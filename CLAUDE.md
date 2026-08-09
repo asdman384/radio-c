@@ -11,7 +11,7 @@
 - If you're unsure — ASK, don't guess
 
 # Working Style
-- Plan first, then code
+- First, create a plan, show it to the user, and ask for approval before proceeding with the coding.
 <!-- - Small changes: one file → tests → next file -->
 - Use sub-agents to explore the codebase
 

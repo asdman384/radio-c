@@ -13,7 +13,7 @@ export function TrackRating({ trackKey, rating }: TrackRatingProps) {
   const disabled = !trackKey || rating.loading || rating.pending;
 
   return (
-    <div className="mt-8 flex items-center gap-3">
+    <div className="mt-6 flex items-center gap-3">
       <span className="text-sm text-charcoal/70">Rate this track:</span>
 
       <RatingButton

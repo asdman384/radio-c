@@ -8,7 +8,7 @@ type PreviousTracksProps = {
 
 export function PreviousTracks({ previous }: PreviousTracksProps) {
   return (
-    <section className="bg-mint py-10">
+    <section className="bg-mint py-6">
       <div className="mx-auto w-full max-w-[1200px] px-6">
         <h2 className="font-heading text-xl font-bold text-charcoal">Previous tracks:</h2>
         <ul className="mt-4 space-y-2">

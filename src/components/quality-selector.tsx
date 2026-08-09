@@ -30,7 +30,7 @@ export function QualitySelector({
       {/* Quality selector -- only meaningful when hls.js is driving and
           the master actually offered more than one variant. */}
       {variants.length > 1 && (
-        <div className="mt-4 flex flex-wrap items-center gap-3">
+        <div className="mt-2 flex flex-wrap items-center gap-3">
           <span className="text-sm text-charcoal/60">Stream:</span>
           <div className="flex overflow-hidden rounded border-2 border-forest">
             {(Object.keys(QUALITY_LABELS) as QualityMode[]).map((mode) => {
