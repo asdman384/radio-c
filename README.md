@@ -172,8 +172,24 @@ src/lib/db.ts                    connection, pragmas, migrations, query helpers
 src/lib/ratings.ts               ratings SQL
 db/migrations/                   schema, one .sql file per change
 scripts/db.mts                   database CLI (Node runs TypeScript natively)
+tests/                           Vitest suite, mirrors src/ (see "Testing" below)
 public/RadioCalicoLogoTM.png     logo used in the header
 ```
+
+## Testing
+
+Vitest covers the ratings feature end to end — backend (`src/lib/ratings.ts`, the
+`/api/ratings` route) and frontend (`use-track-rating`, `TrackRating`):
+
+```bash
+npm test          # single run
+npm run test:watch
+```
+
+Test files live under `tests/`, mirroring `src/` (not colocated with source). Backend tests
+run under Node against a throwaway temp SQLite file per test file — see
+`tests/support/ratings-db.ts` — and never touch `data/app.db`. Frontend tests opt into jsdom
+per file via a `// @vitest-environment jsdom` docblock and use `@testing-library/react`.
 
 ## Conventions
 
@@ -191,7 +207,7 @@ public/RadioCalicoLogoTM.png     logo used in the header
 
 ## Status
 
-`npm run build`, `npx tsc --noEmit`, and `npm run lint` are all clean.
+`npm run build`, `npx tsc --noEmit`, `npm run lint`, and `npm test` are all clean.
 
 End-to-end audio playback has **not** yet been confirmed in a real browser — the FLAC path in
 particular depends on runtime MSE codec support that a build cannot exercise. Open

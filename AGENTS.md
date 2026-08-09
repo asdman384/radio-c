@@ -58,6 +58,31 @@ contract.
 - `scripts/*.mts` run directly under Node — it executes TypeScript natively, so there is no
   build step and no ts-node. Imports there need explicit `.ts` extensions.
 
+## Testing
+
+Vitest is the test runner (`npm test` for a single run, `npm run test:watch` for the dev
+loop), configured in `vitest.config.mts`. Test files live under `tests/`, mirroring `src/`
+(e.g. `tests/lib/ratings.test.ts` for `src/lib/ratings.ts`), not colocated with the source.
+
+- **The default test environment is `node`**, not `jsdom` — this keeps backend tests (ones
+  touching `db.ts`/`ratings.ts`/route handlers) honest about running under real Node. Frontend
+  test files opt into the DOM individually with a `// @vitest-environment jsdom` docblock as
+  the first line.
+- **Backend tests never open a second `DatabaseSync`.** `src/lib/db.ts` caches its connection
+  on `globalThis`, keyed by `DATABASE_PATH` read once at import time, so tests must go through
+  `tests/support/ratings-db.ts`'s `withFreshDb()`/`teardownFreshDb()` helpers, which close the
+  cached connection, point `DATABASE_PATH` at a fresh temp file, and `vi.resetModules()` before
+  re-importing `db.ts`/`ratings.ts`. Never write to `data/app.db` from a test.
+- **`next/headers`'s `cookies()` throws outside a real request**, so route-handler tests mock
+  it (`vi.mock("next/headers", ...)`) with a small fake cookie-jar object rather than calling
+  `GET`/`POST` unmocked.
+- **`test.globals` is `false`** — every test file imports `describe`/`it`/`expect`/`vi`
+  explicitly from `"vitest"`, matching the rest of the codebase's no-barrel-import style.
+- `@testing-library/react` is used for component/hook tests already covering the ratings UI
+  (`tests/components/track-rating.test.tsx`, `tests/hooks/use-track-rating.test.ts`); there is
+  no `@testing-library/jest-dom`, so assert on plain DOM properties (`.disabled`,
+  `getAttribute(...)`) rather than `toBeDisabled()`-style matchers.
+
 ## Gotchas
 
 - React 19's `react-hooks/set-state-in-effect` rule is enforced and will fail `npm run lint`.
@@ -65,5 +90,5 @@ contract.
   `use-persistent-volume.ts`); do not call `setState` synchronously in an effect body.
 - Deleting a route under `src/app/api/` leaves stale references in `.next/types/validator.ts`
   that break `npx tsc --noEmit`. Remove `.next/` and rebuild to regenerate them.
-- Useful commands: `npm run build`, `npx tsc --noEmit`, `npm run lint`, `npm run db:reset`,
-  `npm run db:query "SELECT ..."`.
+- Useful commands: `npm run build`, `npx tsc --noEmit`, `npm run lint`, `npm test`,
+  `npm run db:reset`, `npm run db:query "SELECT ..."`.
