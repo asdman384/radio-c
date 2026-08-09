@@ -1,0 +1,18 @@
+services:
+  radio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: prod
+    image: radio-calico:prod
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_PATH: /app/data/app.db
+    volumes:
+      - radio-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  radio-data:

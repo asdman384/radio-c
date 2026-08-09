@@ -1,0 +1,16 @@
+services:
+  radio-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    image: radio-calico:dev
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_PATH: /app/data/app.db
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+      - ./data:/app/data

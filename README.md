@@ -16,6 +16,32 @@ npm run dev      # http://localhost:3000
 That is all the player needs — it talks directly to the CloudFront origin and does not
 currently touch the database.
 
+## Docker
+
+Requires Docker Desktop (WSL2 backend on Windows). Two compose files cover the two modes;
+both serve on http://localhost:3000.
+
+```bash
+# Dev — live reload, bind-mounts the repo into the container
+docker compose -f docker-compose.dev.yml up --build
+
+# Prod — minimal standalone image, data persisted in a named volume
+docker compose up --build -d
+```
+
+- The prod image uses Next's `output: "standalone"` build (`next.config.ts`) — the final
+  image ships only the traced server bundle plus `db/migrations`, `db/seed.sql`, and
+  `public/`, not the full `node_modules`/source tree.
+- The prod container runs as a non-root user and persists SQLite at `/app/data/app.db` in
+  the `radio-data` named volume. The dev container bind-mounts `./data` instead, matching
+  local `npm run dev` behaviour, so `data/app.db` stays inspectable on disk.
+- `node_modules` and `.next` are anonymous volumes in the dev container (not the bind mount)
+  since some dependencies ship platform-specific native binaries — they must be the ones
+  `npm ci` installed inside the Linux container, not whatever is on the Windows host.
+- The `npm run db:migrate` / `db:seed` / `db:query` CLI scripts are dev-only; the prod image
+  doesn't include `scripts/` or dev dependencies. Migrations still run automatically on the
+  app's first database connection either way.
+
 ## The player
 
 ### The stream

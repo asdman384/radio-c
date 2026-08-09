@@ -57,6 +57,27 @@ contract.
   the database.
 - `scripts/*.mts` run directly under Node — it executes TypeScript natively, so there is no
   build step and no ts-node. Imports there need explicit `.ts` extensions.
+- **`next.config.ts` sets `output: "standalone"`** for the Docker prod build. Next's file
+  tracer only follows imports, so `db/migrations/*.sql` and `db/seed.sql` (read via `fs` at
+  runtime, not imported) are not picked up automatically — the prod `Dockerfile` stage copies
+  `db/` in explicitly. Keep that in mind if a schema-adjacent file is ever added that also
+  needs to ship but isn't imported anywhere.
+
+## Docker
+
+- **`Dockerfile`** is a multi-stage build: `deps` → `dev` (runs `next dev`, meant to be used
+  with a bind mount) and `deps` → `builder` → `prod` (standalone output, non-root user, only
+  `db/migrations`, `db/seed.sql`, and `public/` copied alongside the traced server bundle).
+- **`docker-compose.yml`** runs the prod target with SQLite persisted in the `radio-data`
+  named volume. **`docker-compose.dev.yml`** runs the dev target with the repo bind-mounted
+  and `node_modules`/`.next` as anonymous volumes, so the container's own Linux-built
+  `node_modules` is never shadowed by a host copy.
+- The prod stage explicitly sets `ENV HOSTNAME=0.0.0.0` — Docker auto-sets `HOSTNAME` to the
+  container ID, and the standalone `server.js` binds to `process.env.HOSTNAME`, so left alone
+  it would listen only on the container's resolved address instead of all interfaces.
+- The `HEALTHCHECK` hits `127.0.0.1`, not `localhost` — Alpine resolves `localhost` to `::1`
+  first, and the server only binds the IPv4 wildcard.
+- See `README.md`'s "Docker" section for the run commands.
 
 ## Testing
 
