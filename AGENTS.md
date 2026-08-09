@@ -104,6 +104,19 @@ loop), configured in `vitest.config.mts`. Test files live under `tests/`, mirror
   no `@testing-library/jest-dom`, so assert on plain DOM properties (`.disabled`,
   `getAttribute(...)`) rather than `toBeDisabled()`-style matchers.
 
+## Security
+
+`npm run audit` runs `npm audit --audit-level=high` (dependency vulnerability scan). `make
+security` is a thin wrapper around it for CI/local use — run before releases or when
+dependencies change.
+
+## CI
+
+`.github/workflows/ci.yml` runs on every push to `master` and on all pull requests, as two
+parallel jobs on Node 24: `test` (`npm run lint`, `npx tsc --noEmit`, `npm test`) and
+`security` (`npm run audit`). Both must pass `npm ci` first — there is no separate build step
+since Vitest and tsc run against source directly.
+
 ## Gotchas
 
 - React 19's `react-hooks/set-state-in-effect` rule is enforced and will fail `npm run lint`.
@@ -112,4 +125,4 @@ loop), configured in `vitest.config.mts`. Test files live under `tests/`, mirror
 - Deleting a route under `src/app/api/` leaves stale references in `.next/types/validator.ts`
   that break `npx tsc --noEmit`. Remove `.next/` and rebuild to regenerate them.
 - Useful commands: `npm run build`, `npx tsc --noEmit`, `npm run lint`, `npm test`,
-  `npm run db:reset`, `npm run db:query "SELECT ..."`.
+  `npm run db:reset`, `npm run db:query "SELECT ..."`, `make security`.

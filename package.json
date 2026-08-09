@@ -13,7 +13,8 @@
     "db:migrate": "node scripts/db.mts",
     "db:seed": "node scripts/db.mts seed",
     "db:reset": "node scripts/db.mts reset",
-    "db:query": "node scripts/db.mts query"
+    "db:query": "node scripts/db.mts query",
+    "audit": "npm audit --audit-level=high"
   },
   "dependencies": {
     "hls.js": "^1.6.17",
